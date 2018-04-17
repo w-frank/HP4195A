@@ -39,7 +39,8 @@ class hp4195a(multiprocessing.Process):
             elif command == 'start_acquisition':
                 print('TELNET: starting acquisition')
                 sys.stdout.flush()
-                self.acquire_data()
+                self.acquire_mag_data()
+                self.acquire_freq_data()
 
     def telnet_connect(self):
         self.tn = telnetlib.Telnet(self.host, self.port)
@@ -56,16 +57,24 @@ class hp4195a(multiprocessing.Process):
 
     # def disconnect(self):
 
-    def acquire_data(self):
-        raw_data = self.send_query('A?')
-        data = np.fromstring(raw_data, dtype=float, sep=',')
+    def acquire_mag_data(self):
+        raw_mag_data = self.send_query('A?')
+        mag_data = np.fromstring(raw_mag_data, dtype=float, sep=',')
         sys.stdout.flush()
-        self.data_queue.put(raw_data)
+        self.data_queue.put(mag_data)
         print('TELNET: data queue size = ', self.data_queue.qsize())
         sys.stdout.flush()
         #self.command_queue.put(True)
         #print('TELNET: command queue size = ', self.command_queue.qsize())
         #sys.stdout.flush()
+
+    def acquire_freq_data(self):
+        raw_freq_data = self.send_query('X?')
+        freq_data = np.fromstring(raw_freq_data, dtype=float, sep=',')
+        sys.stdout.flush()
+        self.data_queue.put(freq_data)
+        print('TELNET: data queue size = ', self.data_queue.qsize())
+        sys.stdout.flush()
 
     def send_command(self, command):
         cmd = command + '\r\n'
