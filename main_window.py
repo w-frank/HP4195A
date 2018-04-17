@@ -25,7 +25,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def initUI(self):
         self.setWindowTitle(self.title)
-        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setFixedSize(self.width, self.height)
         window_icon = QIcon('hp_icon.png')
         self.setWindowIcon(window_icon)
         self.graph = PlotCanvas(self, data_queue=self.data_queue, width=6, height=5)
@@ -145,7 +145,7 @@ class PlotCanvas(FigureCanvas):
             self.freq_data = range(100)
             self.mag_data = [0 for i in range(100)]
         self.ax = self.figure.add_subplot(111)
-        self.ax.clear()
+        #self.ax.clear()
         self.ax.semilogx(self.freq_data, self.mag_data, 'k')
         self.ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
         self.ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)

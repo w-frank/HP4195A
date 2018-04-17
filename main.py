@@ -1,10 +1,11 @@
 import sys
 import hp4195a as hp
-from multiprocessing import Queue
+from multiprocessing import Queue, freeze_support
 from main_window import MainWindow
 from PyQt5 import QtWidgets
 
 if __name__ == '__main__':
+    freeze_support()
     command_queue = Queue()
     data_queue = Queue()
 
