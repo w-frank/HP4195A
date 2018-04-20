@@ -28,7 +28,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setFixedSize(self.width, self.height)
         window_icon = QIcon('hp_icon.png')
         self.setWindowIcon(window_icon)
-        self.graph = PlotCanvas(self, data_queue=self.data_queue, width=6, height=5)
+        self.graph = PlotCanvas(self, data_queue=self.data_queue, width=6, height=4.28)
         self.graph.move(0,0)
 
         self.generate_connect_button()
@@ -43,6 +43,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cb = QtWidgets.QCheckBox('Persist', self)
         self.cb.move(10, 500)
         self.cb.stateChanged.connect(self.change_persist_state)
+
+        self.main_menu = self.menuBar()
+        self.file_menu = self.main_menu.addMenu('File')
+        self.help_menu = self.main_menu.addMenu('Help')
+
+        self.save_button = QtWidgets.QAction(QIcon('exit24.png'), 'Save As...', self)
+        self.save_button.setShortcut('Ctrl+S')
+        self.save_button.setStatusTip('Save As')
+        self.save_button.triggered.connect(self.save_file_dialog)
+        self.file_menu.addAction(self.save_button)
+
+        self.exit_button = QtWidgets.QAction(QIcon('exit24.png'), 'Exit', self)
+        self.exit_button.setShortcut('Ctrl+Q')
+        self.exit_button.setStatusTip('Exit application')
+        self.exit_button.triggered.connect(self.close)
+        self.file_menu.addAction(self.exit_button)
 
         self.show()
 
@@ -75,35 +91,35 @@ class MainWindow(QtWidgets.QMainWindow):
     def generate_connect_button(self):
         self.connect_button = QtWidgets.QPushButton('Connect', self)
         self.connect_button.setToolTip('Connect to a HP4195A Network Analyser')
-        self.connect_button.move(600, 0)
+        self.connect_button.move(600, 30)
         self.connect_button.resize(140, 100)
         self.connect_button.clicked.connect(self.connect)
 
     def generate_acquire_button(self):
         self.acquire_button = QtWidgets.QPushButton('Acquire Data', self)
         self.acquire_button.setToolTip('Acquire data from a HP4195A Network Analyser')
-        self.acquire_button.move(600, 100)
+        self.acquire_button.move(600, 130)
         self.acquire_button.resize(140, 100)
         self.acquire_button.clicked.connect(self.start_acquisition)
 
     def generate_update_button(self):
         self.update_button = QtWidgets.QPushButton('Update', self)
         self.update_button.setToolTip('Update the display')
-        self.update_button.move(600, 200)
+        self.update_button.move(600, 230)
         self.update_button.resize(140, 100)
         self.update_button.clicked.connect(self.update_plot)
 
     def generate_save_button(self):
         self.save_button = QtWidgets.QPushButton('Save', self)
         self.save_button.setToolTip('Save the data')
-        self.save_button.move(600, 300)
+        self.save_button.move(600, 330)
         self.save_button.resize(140, 100)
         self.save_button.clicked.connect(self.save_file_dialog)
 
     def save_file_dialog(self):
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.DontUseNativeDialog
-        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self,"Save File","","AllFiles (*);;Text Files (*.txt)", options=options)
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self,"Save File","","All Files (*);;Text Files (*.txt);;CSV Files (*.csv)", options=options)
         if file_name:
             print(file_name)
             self.save_file(file_name)
@@ -159,7 +175,7 @@ class PlotCanvas(FigureCanvas):
 
         if self.persist == False:
             self.ax.clear()
-            
+
         self.ax.semilogx(self.freq_data, self.mag_data, 'k')
         self.ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
         self.ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
