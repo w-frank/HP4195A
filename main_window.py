@@ -20,7 +20,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.top = 50
         self.title = 'HP4195A Interface'
         self.width = 740
-        self.height = 500
+        self.height = 600
         self.initUI()
 
     def initUI(self):
@@ -40,7 +40,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_button.setEnabled(False)
         self.save_button.setEnabled(True)
 
+        self.cb = QtWidgets.QCheckBox('Persist', self)
+        self.cb.move(10, 500)
+        self.cb.stateChanged.connect(self.change_persist_state)
+
         self.show()
+
+    def change_persist_state(self):
+        if self.graph.persist:
+            self.graph.persist = False
+        else:
+            self.graph.persist = True
 
     def connect(self):
         print('GUI: connecting to HP4195A')
@@ -125,6 +135,7 @@ class PlotCanvas(FigureCanvas):
                  height=4,
                  dpi=100):
         self.data_queue = data_queue
+        self.persist = False
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
@@ -145,7 +156,10 @@ class PlotCanvas(FigureCanvas):
             self.freq_data = range(100)
             self.mag_data = [0 for i in range(100)]
         self.ax = self.figure.add_subplot(111)
-        #self.ax.clear()
+
+        if self.persist == False:
+            self.ax.clear()
+            
         self.ax.semilogx(self.freq_data, self.mag_data, 'k')
         self.ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
         self.ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
