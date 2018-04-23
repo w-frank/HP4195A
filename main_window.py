@@ -1,10 +1,12 @@
 import csv
 import numpy as np
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QIcon
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
+import logging
+import logging.handlers
 
 class MainWindow(QtWidgets.QMainWindow):
     '''
@@ -12,15 +14,21 @@ class MainWindow(QtWidgets.QMainWindow):
     It does not directly communicate with the hardware, but instead puts
     items in a command queue which are handled by another process.
     '''
-    def __init__(self, command_queue, data_queue):
+    def __init__(self, command_queue, message_queue, data_queue, logging_queue):
         super(MainWindow, self).__init__()
         self.command_queue = command_queue
+        self.message_queue = message_queue
         self.data_queue = data_queue
+        self.logging_queue = logging_queue
         self.left = 50
         self.top = 50
         self.title = 'HP4195A Interface'
         self.width = 740
         self.height = 600
+        self.root_logger = logging.getLogger()
+        self.qh= logging.handlers.QueueHandler(self.logging_queue)
+        self.root_logger.addHandler(self.qh)
+        self.logger = logging.getLogger(__name__)
         self.initUI()
 
     def initUI(self):
@@ -30,8 +38,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(window_icon)
         self.graph = PlotCanvas(self, data_queue=self.data_queue, width=6, height=4.28)
         self.graph.move(0,0)
+        self.connected = False
 
-        self.generate_connect_button()
+        self.generate_connection_button()
         self.generate_acquire_button()
         self.generate_update_button()
         self.generate_save_button()
@@ -69,26 +78,54 @@ class MainWindow(QtWidgets.QMainWindow):
             self.graph.persist = True
 
     def connect(self):
-        print('GUI: connecting to HP4195A')
-        self.command_queue.put('connect')
-        print('GUI: command queue size = ', self.command_queue.qsize())
-        self.connect_button.setText("Disconnect")
-        self.acquire_button.setEnabled(True)
+        if self.connected:
+            self.logger.info('Disconnecting from HP4195A')
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+            self.command_queue.put('disconnect')
+            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+            if self.message_queue.get():
+                self.logger.info('Successfully disconnected from HP4195A')
+                QtWidgets.QApplication.restoreOverrideCursor()
+                self.connect_button.setText("Connect")
+                self.acquire_button.setEnabled(False)
+                self.connected = False
+            else:
+                self.logger.info('Disconnection from HP4195 failed')
+        else:
+            self.logger.info('Connecting to HP4195A')
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+            self.command_queue.put('connect')
+            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+            if self.message_queue.get():
+                self.logger.info('Successfully connected to HP4195A')
+                QtWidgets.QApplication.restoreOverrideCursor()
+                self.connect_button.setText("Disconnect")
+                self.acquire_button.setEnabled(True)
+                self.connected = True
+            else:
+                self.logger.info('Connection to HP4195 failed')
 
     def start_acquisition(self):
-        print('GUI: starting acquisition')
+        self.logger.info('Starting data acquisition')
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         self.acquire_button.setEnabled(False)
         self.command_queue.put('start_acquisition')
-        self.acquire_button.setEnabled(True)
-        self.update_button.setEnabled(True)
-        self.save_button.setEnabled(True)
+        if self.message_queue.get():
+            self.logger.info('Successfully acquired data')
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.update_button.setEnabled(True)
+            self.save_button.setEnabled(True)
+        else:
+            self.logger.info('Data acquisition failed')
+
 
     def update_plot(self):
-        print('GUI: updating plot')
+        self.logger.info('Updating plot')
         self.graph.plot()
         self.update_button.setEnabled(False)
+        self.acquire_button.setEnabled(True)
 
-    def generate_connect_button(self):
+    def generate_connection_button(self):
         self.connect_button = QtWidgets.QPushButton('Connect', self)
         self.connect_button.setToolTip('Connect to a HP4195A Network Analyser')
         self.connect_button.move(600, 30)
@@ -121,12 +158,11 @@ class MainWindow(QtWidgets.QMainWindow):
         options |= QtWidgets.QFileDialog.DontUseNativeDialog
         file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self,"Save File","","All Files (*);;Text Files (*.txt);;CSV Files (*.csv)", options=options)
         if file_name:
-            print(file_name)
             self.save_file(file_name)
 
     def save_file(self, file_name):
         file_name = file_name +'.csv'
-        print('GUI: saving data to', file_name)
+        self.logger.info('Saving data to:', file_name)
         rows = zip(self.graph.freq_data, self.graph.mag_data)
         with open(file_name, "w") as output:
             writer = csv.writer(output, lineterminator='\n')
@@ -152,10 +188,10 @@ class PlotCanvas(FigureCanvas):
                  dpi=100):
         self.data_queue = data_queue
         self.persist = False
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.ax = self.fig.add_subplot(111)
 
-        FigureCanvas.__init__(self, fig)
+        FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self,
@@ -169,9 +205,8 @@ class PlotCanvas(FigureCanvas):
             self.mag_data = self.data_queue.get()
             self.freq_data = self.data_queue.get()
         else:
-            self.freq_data = range(100)
-            self.mag_data = [0 for i in range(100)]
-        self.ax = self.figure.add_subplot(111)
+            self.freq_data = range(1, 100)
+            self.mag_data = [0 for i in range(1, 100)]
 
         if self.persist == False:
             self.ax.clear()
