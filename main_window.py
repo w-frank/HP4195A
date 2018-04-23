@@ -20,15 +20,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.message_queue = message_queue
         self.data_queue = data_queue
         self.logging_queue = logging_queue
+
         self.left = 50
         self.top = 50
         self.title = 'HP4195A Interface'
         self.width = 740
         self.height = 600
+
         self.root_logger = logging.getLogger()
         self.qh= logging.handlers.QueueHandler(self.logging_queue)
         self.root_logger.addHandler(self.qh)
         self.logger = logging.getLogger(__name__)
+        self.connected = False
         self.initUI()
 
     def initUI(self):
@@ -38,24 +41,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(window_icon)
         self.graph = PlotCanvas(self, data_queue=self.data_queue, width=6, height=4.28)
         self.graph.move(0,0)
-        self.connected = False
 
         self.generate_connection_button()
         self.generate_acquire_button()
         self.generate_update_button()
         self.generate_save_button()
+        self.generate_command_box()
 
         self.acquire_button.setEnabled(False)
         self.update_button.setEnabled(False)
         self.save_button.setEnabled(True)
 
         self.cb = QtWidgets.QCheckBox('Persist', self)
-        self.cb.move(10, 500)
+        self.cb.move(10, 450)
         self.cb.stateChanged.connect(self.change_persist_state)
 
         self.main_menu = self.menuBar()
         self.file_menu = self.main_menu.addMenu('File')
-        self.help_menu = self.main_menu.addMenu('Help')
+        self.about_menu = self.main_menu.addMenu('About')
 
         self.save_button = QtWidgets.QAction(QIcon('exit24.png'), 'Save As...', self)
         self.save_button.setShortcut('Ctrl+S')
@@ -68,6 +71,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exit_button.setStatusTip('Exit application')
         self.exit_button.triggered.connect(self.close)
         self.file_menu.addAction(self.exit_button)
+
+        self.help_button = QtWidgets.QAction(QIcon('exit24.png'), 'Help', self)
+        self.help_button.setShortcut('Ctrl+H')
+        self.help_button.setStatusTip('Help')
+        self.help_button.triggered.connect(self.help_dialog)
+        self.about_menu.addAction(self.help_button)
 
         self.show()
 
@@ -110,14 +119,15 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         self.acquire_button.setEnabled(False)
         self.command_queue.put('start_acquisition')
-        if self.message_queue.get():
+        reply = self.message_queue.get()
+        if reply:
             self.logger.info('Successfully acquired data')
             QtWidgets.QApplication.restoreOverrideCursor()
             self.update_button.setEnabled(True)
             self.save_button.setEnabled(True)
         else:
             self.logger.info('Data acquisition failed')
-
+            self.acquire_button.setEnabled(True)
 
     def update_plot(self):
         self.logger.info('Updating plot')
@@ -153,6 +163,37 @@ class MainWindow(QtWidgets.QMainWindow):
         self.save_button.resize(140, 100)
         self.save_button.clicked.connect(self.save_file_dialog)
 
+    def generate_command_box(self):
+        self.command_box = QtWidgets.QLineEdit(self)
+        self.command_box.move(10, 500)
+        self.command_box.resize(570,30)
+        self.response_box = QtWidgets.QLineEdit(self)
+        self.response_box.move(10, 550)
+        self.response_box.resize(720,30)
+        self.command_button = QtWidgets.QPushButton('Send Command', self)
+        self.command_button.move(590,500)
+        self.command_button.resize(140,30)
+        self.command_button.clicked.connect(self.send_command)
+        self.command_button.setEnabled(False)
+        self.command_box.textChanged.connect(self.toggle_connect_button)
+
+    def toggle_connect_button(self):
+        if len(self.command_box.text()) > 0 and self.connected:
+            self.command_button.setEnabled(True)
+        else:
+            self.command_button.setEnabled(False)
+
+    def send_command(self):
+        command = self.command_box.text()
+        self.command_queue.put('send_command')
+        self.command_queue.put(command)
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        response = self.data_queue.get()
+        if len(response) > 0:
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.response_box.setText('{}: {}'.format(command, response))
+            self.command_box.setText('')
+
     def save_file_dialog(self):
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.DontUseNativeDialog
@@ -170,9 +211,19 @@ class MainWindow(QtWidgets.QMainWindow):
             for row in rows:
                 writer.writerow(row)
 
+    def help_dialog(self):
+        # If you pass a parent (self) will block the Main Window,
+        # and if you do not pass both will be independent,
+        # I recommend you try both cases.
+        self.widget =QtWidgets.QDialog(self)
+        #self.ui=Ui_Help()
+        #self.ui.setupUi(widget)
+        self.widget.exec_()
+
     def closeEvent(self, event):
         if True:
-            # TODO: try disconnect
+            if self.connected:
+                self.connect()
             event.accept()
         else:
             event.ignore()
