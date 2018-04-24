@@ -17,18 +17,19 @@ if __name__ == '__main__':
     data_queue = Queue()
     logging_queue = Queue()
 
+    dp = hp.hp4195a(command_queue, message_queue, data_queue, logging_queue)
+    dp.daemon = True
+    dp.start()
+
+    app = QtWidgets.QApplication(sys.argv)
+    gp = MainWindow(command_queue, message_queue, data_queue, logging_queue)
+
     logging.config.fileConfig("logging.conf", disable_existing_loggers=False)
-
-    b = hp.hp4195a(command_queue, message_queue, data_queue, logging_queue)
-    b.daemon = True
-    b.start()
-
-    a = QtWidgets.QApplication(sys.argv)
-    ex = MainWindow(command_queue, message_queue, data_queue, logging_queue)
-
     lp = threading.Thread(target=ml.logger_thread, args=(logging_queue,))
+    lp.daemon = True
     lp.start()
 
+    sys.exit(app.exec_())
+    dp.join()
     logging_queue.put(None)
     lp.join()
-    sys.exit(a.exec_())

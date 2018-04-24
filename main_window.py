@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 class MainWindow(QtWidgets.QMainWindow):
     '''
-    This class is for the main GUI window, it creates the graph, textboxes and buttons and their events. It does not directly communicate with the hardware, but instead puts messages in a command queue which are handled by another process.
+    This class is for the main GUI window, it creates the graph, textboxes, buttons etc. and their events. It does not directly communicate with the hardware but instead puts messages in a command queue which are handled by another process.
     '''
     def __init__(self, command_queue, message_queue, data_queue, logging_queue):
         super(MainWindow, self).__init__()
@@ -26,10 +26,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.width = 740
         self.height = 600
 
-        self.root_logger = logging.getLogger()
         self.qh = logging.handlers.QueueHandler(self.logging_queue)
-        self.root_logger.addHandler(self.qh)
+        self.root = logging.getLogger()
+        self.root.setLevel(logging.DEBUG)
+        self.root.addHandler(self.qh)
         self.logger = logging.getLogger(__name__)
+
         self.connected = False
         self.initUI()
 
@@ -49,6 +51,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.generate_update_button()
         self.generate_save_button()
         self.generate_command_box()
+        self.generate_command_button()
         self.generate_response_box()
         self.generate_persistance_checkbox()
         self.generate_mag_enable_checkbox()
@@ -60,56 +63,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.save_button.setEnabled(True)
 
         self.show()
-
-    def connect(self):
-        if self.connected:
-            self.logger.info('Disconnecting from HP4195A')
-            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
-            self.command_queue.put('disconnect')
-            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
-            if self.message_queue.get():
-                self.logger.info('Successfully disconnected from HP4195A')
-                QtWidgets.QApplication.restoreOverrideCursor()
-                self.connect_button.setText("Connect")
-                self.acquire_button.setEnabled(False)
-                self.connected = False
-            else:
-                self.logger.info('Disconnection from HP4195 failed')
-        else:
-            self.logger.info('Connecting to HP4195A')
-            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
-            self.command_queue.put('connect')
-            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
-            if self.message_queue.get():
-                self.logger.info('Successfully connected to HP4195A')
-                QtWidgets.QApplication.restoreOverrideCursor()
-                self.connect_button.setText("Disconnect")
-                self.acquire_button.setEnabled(True)
-                self.connected = True
-            else:
-                self.logger.info('Connection to HP4195 failed')
-
-    def start_acquisition(self):
-        self.logger.info('Starting data acquisition')
-        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
-        self.acquire_button.setEnabled(False)
-        self.command_queue.put('start_acquisition')
-        reply = self.message_queue.get()
-        if reply:
-            self.logger.info('Successfully acquired data')
-            QtWidgets.QApplication.restoreOverrideCursor()
-            self.update_button.setEnabled(True)
-            self.save_button.setEnabled(True)
-        else:
-            self.logger.info('Data acquisition failed')
-            self.acquire_button.setEnabled(True)
-
-    def update_plot(self):
-        self.logger.info('Updating plot')
-        self.graph.plot()
-        # TODO: check plot updated OK
-        self.update_button.setEnabled(False)
-        self.acquire_button.setEnabled(True)
 
     def generate_menu_bar(self):
         self.main_menu = self.menuBar()
@@ -175,15 +128,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.command_box = QtWidgets.QLineEdit(self)
         self.command_box.move(140, 510)
         self.command_box.resize(440,30)
-        self.command_button = QtWidgets.QPushButton('Send Command', self)
-        self.command_button.move(590,510)
-        self.command_button.resize(140,30)
-        self.command_button.clicked.connect(self.send_command)
-        self.command_button.setEnabled(False)
         self.command_box.textChanged.connect(self.toggle_connect_button)
         self.command_box_label = QtWidgets.QLabel('GPIB Command:', self)
         self.command_box_label.resize(120,30)
         self.command_box_label.move(10,510)
+
+    def generate_command_button(self):
+        self.command_button = QtWidgets.QPushButton('Send Command', self)
+        self.command_button.move(590,510)
+        self.command_button.resize(140,30)
+        self.command_button.setToolTip('Send the GPIB command')
+        self.command_button.clicked.connect(self.send_command)
+        self.command_button.setEnabled(False)
 
     def generate_response_box(self):
         self.response_box = QtWidgets.QLineEdit(self)
@@ -197,6 +153,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.p_cb = QtWidgets.QCheckBox('Persist', self)
         self.p_cb.resize(100,30)
         self.p_cb.move(10, 450)
+        self.p_cb.setToolTip('Set display to persist')
         self.p_cb.stateChanged.connect(self.change_persist_state)
 
     def generate_mag_enable_checkbox(self):
@@ -204,12 +161,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.mag_cb.toggle()
         self.mag_cb.resize(590,30)
         self.mag_cb.move(100, 450)
+        self.mag_cb.setToolTip('Display magnitude data')
         self.mag_cb.stateChanged.connect(self.change_mag_state)
 
     def generate_phase_enable_checkbox(self):
         self.phase_cb = QtWidgets.QCheckBox('Phase', self)
         self.phase_cb.toggle()
         self.phase_cb.move(210, 450)
+        self.phase_cb.setToolTip('Display phase data')
         self.phase_cb.stateChanged.connect(self.change_phase_state)
 
     def change_persist_state(self):
@@ -217,25 +176,31 @@ class MainWindow(QtWidgets.QMainWindow):
             self.graph.persist = False
             self.mag_cb.setEnabled(True)
             self.phase_cb.setEnabled(True)
+            self.logger.info('Persistence: Disabled')
         else:
             self.graph.persist = True
             self.mag_cb.setEnabled(False)
             self.phase_cb.setEnabled(False)
+            self.logger.info('Persistence: Enabled')
 
     def change_mag_state(self):
         if self.graph.magnitude:
             self.graph.magnitude = False
+            self.logger.info('Magnitude: Disabled')
             self.graph.plot()
         else:
             self.graph.magnitude = True
+            self.logger.info('Magnitude: Enabled')
             self.graph.plot()
 
     def change_phase_state(self):
         if self.graph.phase:
             self.graph.phase = False
+            self.logger.info('Phase: Disabled')
             self.graph.plot()
         else:
             self.graph.phase = True
+            self.logger.info('Phase: Enabled')
             self.graph.plot()
 
     def toggle_connect_button(self):
@@ -244,12 +209,69 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.command_button.setEnabled(False)
 
+    def connect(self):
+        if self.connected:
+            self.logger.info('Disconnecting from HP4195A')
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+            self.command_queue.put('disconnect')
+            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+            if self.message_queue.get():
+                self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
+                self.logger.info('Successfully disconnected from HP4195A')
+                QtWidgets.QApplication.restoreOverrideCursor()
+                self.connect_button.setText("Connect")
+                self.acquire_button.setEnabled(False)
+                self.connected = False
+            else:
+                self.logger.info('Disconnection from HP4195 failed')
+        else:
+            self.logger.info('Attempting to connect to HP4195A')
+            QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+            self.command_queue.put('connect')
+            self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+            if self.message_queue.get():
+                self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
+                self.logger.info('Successfully connected to HP4195A')
+                QtWidgets.QApplication.restoreOverrideCursor()
+                self.connect_button.setText("Disconnect")
+                self.acquire_button.setEnabled(True)
+                self.connected = True
+            else:
+                self.logger.info('Connection to HP4195 failed')
+
+    def start_acquisition(self):
+        self.logger.info('Starting data acquisition')
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        self.acquire_button.setEnabled(False)
+        self.command_queue.put('start_acquisition')
+        self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
+        reply = self.message_queue.get()
+        self.logger.info('Message queue size = {}'.format(self.message_queue.qsize()))
+        if reply:
+            self.logger.info('Successfully acquired data')
+            QtWidgets.QApplication.restoreOverrideCursor()
+            self.update_button.setEnabled(True)
+            self.save_button.setEnabled(True)
+        else:
+            self.logger.info('Data acquisition failed')
+            self.acquire_button.setEnabled(True)
+
+    def update_plot(self):
+        self.logger.info('Updating plot')
+        self.graph.plot()
+        # TODO: check plot updated OK
+        self.update_button.setEnabled(False)
+        self.acquire_button.setEnabled(True)
+
     def send_command(self):
         command = self.command_box.text()
         self.command_queue.put('send_command')
+        self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         self.command_queue.put(command)
+        self.logger.info('Command queue size = {}'.format(self.command_queue.qsize()))
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         response = self.data_queue.get()
+        self.logger.info('Data queue size = {}'.format(self.data_queue.qsize()))
         if len(response) > 0:
             QtWidgets.QApplication.restoreOverrideCursor()
             self.response_box.setText('{}: {}'.format(command, response))
@@ -264,7 +286,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def save_file(self, file_name):
         file_name = file_name +'.csv'
-        self.logger.info('Saving data to:', file_name)
+        self.logger.info('Saving data to: {}'.format(file_name))
         rows = zip(self.graph.freq_data,
                    self.graph.mag_data,
                    self.graph.phase_data)
@@ -326,6 +348,7 @@ class PlotCanvas(FigureCanvas):
             self.mag_data = self.data_queue.get()
             self.phase_data = self.data_queue.get()
             self.freq_data = self.data_queue.get()
+            self.logger.info('Data queue size = {}'.format(self.data_queue.qsize()))
 
         self.mag_ax.set_ylabel('Magnitude (dB)')
         self.phase_ax.set_ylabel('Phase (deg)')
