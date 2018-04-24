@@ -1,18 +1,16 @@
 import csv
 import numpy as np
-from PyQt5 import QtWidgets, QtCore
+import logging
+import logging.handlers
+
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtGui import QIcon
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-import logging
-import logging.handlers
-
 class MainWindow(QtWidgets.QMainWindow):
     '''
-    This class is for the main GUI, it creates the buttons and their events.
-    It does not directly communicate with the hardware, but instead puts
-    items in a command queue which are handled by another process.
+    This class is for the main GUI window, it creates the graph, textboxes and buttons and their events. It does not directly communicate with the hardware, but instead puts messages in a command queue which are handled by another process.
     '''
     def __init__(self, command_queue, message_queue, data_queue, logging_queue):
         super(MainWindow, self).__init__()
@@ -21,14 +19,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.data_queue = data_queue
         self.logging_queue = logging_queue
 
+        self.title = 'HP4195A'
+        self.window_icon = QIcon('hp_icon.png')
         self.left = 50
         self.top = 50
-        self.title = 'HP4195A Interface'
         self.width = 740
         self.height = 600
 
         self.root_logger = logging.getLogger()
-        self.qh= logging.handlers.QueueHandler(self.logging_queue)
+        self.qh = logging.handlers.QueueHandler(self.logging_queue)
         self.root_logger.addHandler(self.qh)
         self.logger = logging.getLogger(__name__)
         self.connected = False
@@ -37,54 +36,30 @@ class MainWindow(QtWidgets.QMainWindow):
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setFixedSize(self.width, self.height)
-        window_icon = QIcon('hp_icon.png')
-        self.setWindowIcon(window_icon)
-        self.graph = PlotCanvas(self, data_queue=self.data_queue, width=6, height=4.28)
-        self.graph.move(0,0)
+        self.setWindowIcon(self.window_icon)
+
+        self.graph = PlotCanvas(self,
+                                data_queue=self.data_queue,
+                                width=6,
+                                height=4.1)
+        self.graph.move(0,20)
 
         self.generate_connection_button()
         self.generate_acquire_button()
         self.generate_update_button()
         self.generate_save_button()
         self.generate_command_box()
+        self.generate_response_box()
+        self.generate_persistance_checkbox()
+        self.generate_mag_enable_checkbox()
+        self.generate_phase_enable_checkbox()
+        self.generate_menu_bar()
 
         self.acquire_button.setEnabled(False)
         self.update_button.setEnabled(False)
         self.save_button.setEnabled(True)
 
-        self.cb = QtWidgets.QCheckBox('Persist', self)
-        self.cb.move(10, 450)
-        self.cb.stateChanged.connect(self.change_persist_state)
-
-        self.main_menu = self.menuBar()
-        self.file_menu = self.main_menu.addMenu('File')
-        self.about_menu = self.main_menu.addMenu('About')
-
-        self.save_button = QtWidgets.QAction(QIcon('exit24.png'), 'Save As...', self)
-        self.save_button.setShortcut('Ctrl+S')
-        self.save_button.setStatusTip('Save As')
-        self.save_button.triggered.connect(self.save_file_dialog)
-        self.file_menu.addAction(self.save_button)
-
-        self.exit_button = QtWidgets.QAction(QIcon('exit24.png'), 'Exit', self)
-        self.exit_button.setShortcut('Ctrl+Q')
-        self.exit_button.setStatusTip('Exit application')
-        self.exit_button.triggered.connect(self.close)
-        self.file_menu.addAction(self.exit_button)
-
-        self.help_button = QtWidgets.QAction(QIcon('exit24.png'), 'Help', self)
-        self.help_button.setShortcut('Ctrl+H')
-        self.help_button.setStatusTip('Help')
-        self.help_button.triggered.connect(self.help_dialog)
-        self.about_menu.addAction(self.help_button)
-
         self.show()
-
-    def change_persist_state(self):
-        if self.graph.persist:
-            self.graph.persist = False
-        else:
-            self.graph.persist = True
 
     def connect(self):
         if self.connected:
@@ -132,8 +107,41 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_plot(self):
         self.logger.info('Updating plot')
         self.graph.plot()
+        # TODO: check plot updated OK
         self.update_button.setEnabled(False)
         self.acquire_button.setEnabled(True)
+
+    def generate_menu_bar(self):
+        self.main_menu = self.menuBar()
+        self.file_menu = self.main_menu.addMenu('File')
+        self.about_menu = self.main_menu.addMenu('About')
+
+        self.generate_menu_save_button()
+        self.generate_menu_exit_button()
+        self.generate_menu_help_button()
+
+    def generate_menu_save_button(self):
+        self.save_button = QtWidgets.QAction(QIcon('exit24.png'),
+                                            'Save As...',
+                                            self)
+        self.save_button.setShortcut('Ctrl+S')
+        self.save_button.setStatusTip('Save As')
+        self.save_button.triggered.connect(self.save_file_dialog)
+        self.file_menu.addAction(self.save_button)
+
+    def generate_menu_exit_button(self):
+        self.exit_button = QtWidgets.QAction(QIcon('exit24.png'), 'Exit', self)
+        self.exit_button.setShortcut('Ctrl+Q')
+        self.exit_button.setStatusTip('Exit application')
+        self.exit_button.triggered.connect(self.close)
+        self.file_menu.addAction(self.exit_button)
+
+    def generate_menu_help_button(self):
+        self.help_button = QtWidgets.QAction(QIcon('exit24.png'), 'Help', self)
+        self.help_button.setShortcut('Ctrl+H')
+        self.help_button.setStatusTip('Help')
+        self.help_button.triggered.connect(self.help_dialog)
+        self.about_menu.addAction(self.help_button)
 
     def generate_connection_button(self):
         self.connect_button = QtWidgets.QPushButton('Connect', self)
@@ -165,17 +173,70 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def generate_command_box(self):
         self.command_box = QtWidgets.QLineEdit(self)
-        self.command_box.move(10, 500)
-        self.command_box.resize(570,30)
-        self.response_box = QtWidgets.QLineEdit(self)
-        self.response_box.move(10, 550)
-        self.response_box.resize(720,30)
+        self.command_box.move(140, 510)
+        self.command_box.resize(440,30)
         self.command_button = QtWidgets.QPushButton('Send Command', self)
-        self.command_button.move(590,500)
+        self.command_button.move(590,510)
         self.command_button.resize(140,30)
         self.command_button.clicked.connect(self.send_command)
         self.command_button.setEnabled(False)
         self.command_box.textChanged.connect(self.toggle_connect_button)
+        self.command_box_label = QtWidgets.QLabel('GPIB Command:', self)
+        self.command_box_label.resize(120,30)
+        self.command_box_label.move(10,510)
+
+    def generate_response_box(self):
+        self.response_box = QtWidgets.QLineEdit(self)
+        self.response_box.move(140, 550)
+        self.response_box.resize(590,30)
+        self.response_box_label = QtWidgets.QLabel('Response:', self)
+        self.response_box_label.resize(120,30)
+        self.response_box_label.move(10,550)
+
+    def generate_persistance_checkbox(self):
+        self.p_cb = QtWidgets.QCheckBox('Persist', self)
+        self.p_cb.resize(100,30)
+        self.p_cb.move(10, 450)
+        self.p_cb.stateChanged.connect(self.change_persist_state)
+
+    def generate_mag_enable_checkbox(self):
+        self.mag_cb = QtWidgets.QCheckBox('Magnitude', self)
+        self.mag_cb.toggle()
+        self.mag_cb.resize(590,30)
+        self.mag_cb.move(100, 450)
+        self.mag_cb.stateChanged.connect(self.change_mag_state)
+
+    def generate_phase_enable_checkbox(self):
+        self.phase_cb = QtWidgets.QCheckBox('Phase', self)
+        self.phase_cb.toggle()
+        self.phase_cb.move(210, 450)
+        self.phase_cb.stateChanged.connect(self.change_phase_state)
+
+    def change_persist_state(self):
+        if self.graph.persist:
+            self.graph.persist = False
+            self.mag_cb.setEnabled(True)
+            self.phase_cb.setEnabled(True)
+        else:
+            self.graph.persist = True
+            self.mag_cb.setEnabled(False)
+            self.phase_cb.setEnabled(False)
+
+    def change_mag_state(self):
+        if self.graph.magnitude:
+            self.graph.magnitude = False
+            self.graph.plot()
+        else:
+            self.graph.magnitude = True
+            self.graph.plot()
+
+    def change_phase_state(self):
+        if self.graph.phase:
+            self.graph.phase = False
+            self.graph.plot()
+        else:
+            self.graph.phase = True
+            self.graph.plot()
 
     def toggle_connect_button(self):
         if len(self.command_box.text()) > 0 and self.connected:
@@ -204,21 +265,20 @@ class MainWindow(QtWidgets.QMainWindow):
     def save_file(self, file_name):
         file_name = file_name +'.csv'
         self.logger.info('Saving data to:', file_name)
-        rows = zip(self.graph.freq_data, self.graph.mag_data)
+        rows = zip(self.graph.freq_data,
+                   self.graph.mag_data,
+                   self.graph.phase_data)
         with open(file_name, "w") as output:
             writer = csv.writer(output, lineterminator='\n')
-            writer.writerow(["Frequency", "Magnitude"])
+            writer.writerow(['Frequency', 'Magnitude', 'Phase'])
             for row in rows:
                 writer.writerow(row)
 
     def help_dialog(self):
-        # If you pass a parent (self) will block the Main Window,
-        # and if you do not pass both will be independent,
-        # I recommend you try both cases.
-        self.widget =QtWidgets.QDialog(self)
-        #self.ui=Ui_Help()
-        #self.ui.setupUi(widget)
-        self.widget.exec_()
+        widget = QtWidgets.QDialog(self)
+        ui = Ui_Help()
+        ui.setupUi(widget)
+        widget.exec_()
 
     def closeEvent(self, event):
         if True:
@@ -239,32 +299,73 @@ class PlotCanvas(FigureCanvas):
                  dpi=100):
         self.data_queue = data_queue
         self.persist = False
+        self.magnitude = True
+        self.phase = True
+        self.freq_data = range(1, 100)
+        self.mag_data = [0 for i in range(1, 100)]
+        self.phase_data = [0 for i in range(1, 100)]
         self.fig = Figure(figsize=(width, height), dpi=dpi)
-        self.ax = self.fig.add_subplot(111)
+        self.mag_ax = self.fig.add_subplot(111)
+        self.phase_ax = self.mag_ax.twinx()
 
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
 
         FigureCanvas.setSizePolicy(self,
-                QtWidgets.QSizePolicy.Expanding,
-                QtWidgets.QSizePolicy.Expanding)
+                                   QtWidgets.QSizePolicy.Expanding,
+                                   QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.plot()
 
     def plot(self):
+        if self.persist == False:
+            self.mag_ax.clear()
+            self.phase_ax.clear()
+
         if self.data_queue.qsize():
             self.mag_data = self.data_queue.get()
+            self.phase_data = self.data_queue.get()
             self.freq_data = self.data_queue.get()
-        else:
-            self.freq_data = range(1, 100)
-            self.mag_data = [0 for i in range(1, 100)]
 
-        if self.persist == False:
-            self.ax.clear()
+        self.mag_ax.set_ylabel('Magnitude (dB)')
+        self.phase_ax.set_ylabel('Phase (deg)')
+        self.mag_ax.set_xlabel('Frequency (Hz)')
+        self.phase_ax.set_xlim(np.min(self.freq_data),                                                 np.max(self.freq_data))
+        self.phase_ax.set_ylim(np.min(self.phase_data)-20,                                             np.max(self.phase_data)+20)
+        self.mag_ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
+        self.mag_ax.set_ylim(np.min(self.mag_data)-20,                                               np.max(self.mag_data)+20)
 
-        self.ax.semilogx(self.freq_data, self.mag_data, 'k')
-        self.ax.set_xlim(np.min(self.freq_data), np.max(self.freq_data))
-        self.ax.set_ylim(np.min(self.mag_data)-20, np.max(self.mag_data)+20)
-        self.ax.set_xlabel('Frequency (Hz)')
-        self.ax.set_ylabel('Magnitude (dB)')
+        if self.magnitude == True:
+            self.mag_ax.semilogx(self.freq_data, self.mag_data, 'b')
+
+        if self.phase == True:
+            self.phase_ax.semilogx(self.freq_data, self.phase_data, 'r')
+
+        self.fig.tight_layout()
         self.draw()
+
+class Ui_Help(object):
+    def setupUi(self, Help):
+        Help.setObjectName("Help")
+        Help.resize(251, 99)
+        Help.setWindowTitle('Help')
+        self.gridLayoutWidget = QtWidgets.QWidget(Help)
+        self.gridLayoutWidget.setGeometry(QtCore.QRect(9, 9, 231, 81))
+        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
+        self.gridLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
+        self.gridLayout.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout.setObjectName("gridLayout")
+        self.text_edit = QtWidgets.QPlainTextEdit(self.gridLayoutWidget)
+        self.file = QtCore.QFile('README.rst')
+        if not self.file.open(QtCore.QIODevice.ReadOnly):
+            QtGui.QMessageBox.information(None, 'info', self.file.errorString())
+        self.stream = QtCore.QTextStream(self.file)
+        self.text_edit.setPlainText(self.stream.readAll())
+        self.text_edit.setFrameShape(QtWidgets.QFrame.WinPanel)
+        self.text_edit.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.text_edit.setLineWidth(1)
+        self.text_edit.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustIgnored)
+        self.text_edit.setReadOnly(True)
+        self.text_edit.setObjectName("plainTextEdit")
+        self.gridLayout.addWidget(self.text_edit, 0, 0, 1, 1)
+        QtCore.QMetaObject.connectSlotsByName(Help)

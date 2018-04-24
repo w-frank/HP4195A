@@ -49,13 +49,19 @@ class hp4195a(multiprocessing.Process):
             elif command == 'start_acquisition':
                 #logging.info('Starting acquisition')
                 if self.acquire_mag_data():
-                    if self.acquire_freq_data():
-                        self.message_queue.put(True)
+                    if self.acquire_phase_data():
+                        if self.acquire_freq_data():
+                            self.message_queue.put(True)
+                        else:
+                            print('failed on freq acquisition')
+                            sys.stdout.flush()
+                            self.message_queue.put(False)
                     else:
-                        print('failed on freq')
+                        print('failed on phase acquisition')
+                        sys.stdout.flush()
                         self.message_queue.put(False)
                 else:
-                    print('failed on magnitude')
+                    print('failed on mag acquisition')
                     sys.stdout.flush()
                     self.message_queue.put(False)
 
@@ -94,6 +100,13 @@ class hp4195a(multiprocessing.Process):
         if len(mag_data) > 0:
             self.data_queue.put(mag_data)
             return True
+
+    def acquire_phase_data(self):
+            raw_phase_data = self.send_query('B?')
+            phase_data = np.fromstring(raw_phase_data, dtype=float, sep=',')
+            if len(phase_data) > 0:
+                self.data_queue.put(phase_data)
+                return True
 
     def acquire_freq_data(self):
         raw_freq_data = self.send_query('X?')

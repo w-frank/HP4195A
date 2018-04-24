@@ -9,7 +9,6 @@ from multiprocessing import Queue, freeze_support
 from main_window import MainWindow
 from PyQt5 import QtWidgets
 
-
 if __name__ == '__main__':
     freeze_support()
 
