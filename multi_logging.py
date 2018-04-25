@@ -1,5 +1,4 @@
 import logging
-import sys
 
 def logger_thread(q):
     while True:

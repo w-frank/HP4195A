@@ -1,7 +1,7 @@
 import sys
 import os
-import telnetlib
 import time
+import telnetlib
 import multiprocessing
 import logging
 import logging.handlers

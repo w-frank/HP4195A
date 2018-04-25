@@ -379,7 +379,7 @@ class Ui_Help(object):
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
         self.gridLayout.setObjectName("gridLayout")
         self.text_edit = QtWidgets.QPlainTextEdit(self.gridLayoutWidget)
-        self.file = QtCore.QFile('README.rst')
+        self.file = QtCore.QFile('README.me')
         if not self.file.open(QtCore.QIODevice.ReadOnly):
             QtGui.QMessageBox.information(None, 'info', self.file.errorString())
         self.stream = QtCore.QTextStream(self.file)
