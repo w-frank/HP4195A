@@ -348,7 +348,7 @@ class PlotCanvas(FigureCanvas):
             self.mag_data = self.data_queue.get()
             self.phase_data = self.data_queue.get()
             self.freq_data = self.data_queue.get()
-            self.logger.info('Data queue size = {}'.format(self.data_queue.qsize()))
+            #self.logger.info('Data queue size = {}'.format(self.data_queue.qsize()))
 
         self.mag_ax.set_ylabel('Magnitude (dB)')
         self.phase_ax.set_ylabel('Phase (deg)')
@@ -379,7 +379,7 @@ class Ui_Help(object):
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
         self.gridLayout.setObjectName("gridLayout")
         self.text_edit = QtWidgets.QPlainTextEdit(self.gridLayoutWidget)
-        self.file = QtCore.QFile('README.me')
+        self.file = QtCore.QFile('README.md')
         if not self.file.open(QtCore.QIODevice.ReadOnly):
             QtGui.QMessageBox.information(None, 'info', self.file.errorString())
         self.stream = QtCore.QTextStream(self.file)

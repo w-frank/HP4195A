@@ -28,6 +28,12 @@ To run the program install the dependencies as specified above using pip, conda 
 python hp4195a_reader.py
 ```
 
+The software can also be built into an executable with cx_Freeze. From the project directory run the following command in a terminal window
+
+```python
+python setup.py build
+```
+
 ### Authors
 
 * [Will Frank](https://github.com/w-frank)
