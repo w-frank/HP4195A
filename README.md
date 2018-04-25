@@ -18,9 +18,13 @@ A basic program for connecting to and interfacing with a HP4195A Network/Spectru
 - cx_Freeze
 
 ### Supporting Documents
-- [4195A-4395A GPIB Command Correspondence Table](http://www.tentech.ca/downloads/hardware/HP4195A/4195A-4395A%20GPIB%20Command%20Correspondance.pdf)
-- [4195A Network/Spectrum Analyser Operation Manual](https://www.keysight.com/upload/cmc_upload/All/04195_90000_final.pdf)
-- [Prologix GPIB-ETHERNET Controller User Manual](http://prologix.biz/downloads/PrologixGpibEthernetManual.pdf)
+The following documents provide useful information regarding the 4195A Network/Spectrum Analyser and the Prologix GPIB-ETHERNET Controller including GPIB command definitions and data register names:
+
+* [4195A-4395A GPIB Command Correspondence Table](http://www.tentech.ca/downloads/hardware/HP4195A/4195A-4395A%20GPIB%20Command%20Correspondance.pdf)
+
+* [4195A Network/Spectrum Analyser Operation Manual](https://www.keysight.com/upload/cmc_upload/All/04195_90000_final.pdf)
+
+* [Prologix GPIB-ETHERNET Controller User Manual](http://prologix.biz/downloads/PrologixGpibEthernetManual.pdf)
 
 ### Installing
 
@@ -36,7 +40,7 @@ The software can also be built into an executable with cx_Freeze. From the proje
 python setup.py build
 ```
 
-### Authors
+### Author(s)
 
 * [Will Frank](https://github.com/w-frank)
 

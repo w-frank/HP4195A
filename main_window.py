@@ -24,8 +24,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.title = 'HP4195A'
         self.window_icon = QIcon('hp_icon.png')
-        self.left = 50
-        self.top = 50
         self.width = 740
         self.height = 600
 
@@ -39,6 +37,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.initUI()
 
     def initUI(self):
+        #self.showMaximized()
         self.setWindowTitle(self.title)
         self.setFixedSize(self.width, self.height)
         self.setWindowIcon(self.window_icon)
@@ -349,7 +348,6 @@ class PlotCanvas(FigureCanvas):
             self.mag_data = self.data_queue.get()
             self.phase_data = self.data_queue.get()
             self.freq_data = self.data_queue.get()
-            #self.logger.info('Data queue size = {}'.format(self.data_queue.qsize()))
 
         self.mag_ax.set_ylabel('Magnitude (dB)')
         self.phase_ax.set_ylabel('Phase (deg)')

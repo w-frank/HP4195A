@@ -3,9 +3,9 @@ import os
 import time
 import telnetlib
 import multiprocessing
+import numpy as np
 import logging
 import logging.handlers
-import numpy as np
 import numpy.core._methods
 import numpy.lib.format
 
@@ -17,6 +17,11 @@ class hp4195a(multiprocessing.Process):
         self.message_queue = message_queue
         self.data_queue = data_queue
         self.logging_queue = logger_queue
+
+
+        self.mag_data = []
+        self.phase_data = []
+        self.freq_data = []
 
         self.host = 'bi-gpib-01.dyndns.cern.ch'
         self.port = '1234'
@@ -54,7 +59,7 @@ class hp4195a(multiprocessing.Process):
                 if self.acquire_mag_data():
                     if self.acquire_phase_data():
                         if self.acquire_freq_data():
-                            self.message_queue.put(True)
+                            self.logger.info('Acquired data OK')
                         else:
                             self.logger.warning('Frequency data acquisition failed')
                             self.message_queue.put(False)
@@ -63,6 +68,22 @@ class hp4195a(multiprocessing.Process):
                         self.message_queue.put(False)
                 else:
                     self.logger.warning('Magnitude data acquisition failed')
+                    self.message_queue.put(False)
+
+                mag_check = len(self.mag_data) == len(self.freq_data)
+                phase_check = len(self.phase_data) == len(self.freq_data)
+
+                if mag_check and phase_check:
+                    self.logger.info('Data length check passed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
+                    self.message_queue.put(True)
+                    self.data_queue.put(self.mag_data)
+                    self.data_queue.put(self.phase_data)
+                    self.data_queue.put(self.freq_data)
+                    self.mag_data = []
+                    self.phase_data = []
+                    self.freq_data = []
+                else:
+                    self.logger.warning('Data length check failed ({}, {}, {})'.format(len(self.mag_data),len(self.phase_data),len(self.freq_data)))
                     self.message_queue.put(False)
 
             elif self.command == 'send_command':
@@ -104,23 +125,22 @@ class hp4195a(multiprocessing.Process):
         raw_mag_data = self.send_query('A?')
         mag_data = np.fromstring(raw_mag_data, dtype=float, sep=',')
         if len(mag_data) > 0:
-            self.data_queue.put(mag_data)
+            self.mag_data = mag_data
             return True
 
     def acquire_phase_data(self):
             raw_phase_data = self.send_query('B?')
             phase_data = np.fromstring(raw_phase_data, dtype=float, sep=',')
             if len(phase_data) > 0:
-                self.data_queue.put(phase_data)
+                self.phase_data = phase_data
                 return True
 
     def acquire_freq_data(self):
         raw_freq_data = self.send_query('X?')
         freq_data = np.fromstring(raw_freq_data, dtype=float, sep=',')
         if len(freq_data) > 0:
-            self.data_queue.put(freq_data)
+            self.freq_data = freq_data
             return True
-        self.logger.info('Data queue size = ', self.data_queue.qsize())
 
     def send_command(self, command):
         cmd = command + '\r\n'
@@ -132,7 +152,7 @@ class hp4195a(multiprocessing.Process):
         data = ['init']
         response = []
         while data != []:
-            raw_data = self.tn.read_until(b'\r\n', timeout=2).decode('ascii')
+            raw_data = self.tn.read_until(b'\r\n', timeout=3).decode('ascii')
             self.logger.info('Received {} of {}'.format(len(raw_data), type(raw_data)))
             #raw_data = self.tn.read_until(b'EOF', timeout=4).decode('ascii')
             data = raw_data.splitlines()
