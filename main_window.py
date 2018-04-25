@@ -1,9 +1,12 @@
 import csv
-import numpy as np
+import markdown
+
 import logging
 import logging.handlers
 
-from PyQt5 import QtWidgets, QtCore, QtGui
+import numpy as np
+
+from PyQt5 import QtWidgets, QtCore, QtGui, QtWebEngineWidgets
 from PyQt5.QtGui import QIcon
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -297,10 +300,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 writer.writerow(row)
 
     def help_dialog(self):
-        widget = QtWidgets.QDialog(self)
-        ui = Ui_Help()
-        ui.setupUi(widget)
-        widget.exec_()
+        help_window = Help_Window()
+        help_window.exec_()
 
     def closeEvent(self, event):
         if True:
@@ -367,28 +368,18 @@ class PlotCanvas(FigureCanvas):
         self.fig.tight_layout()
         self.draw()
 
-class Ui_Help(object):
-    def setupUi(self, Help):
-        Help.setObjectName("Help")
-        Help.resize(251, 99)
-        Help.setWindowTitle('Help')
-        self.gridLayoutWidget = QtWidgets.QWidget(Help)
-        self.gridLayoutWidget.setGeometry(QtCore.QRect(9, 9, 231, 81))
-        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
-        self.gridLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
-        self.gridLayout.setContentsMargins(0, 0, 0, 0)
-        self.gridLayout.setObjectName("gridLayout")
-        self.text_edit = QtWidgets.QPlainTextEdit(self.gridLayoutWidget)
+class Help_Window(QtWidgets.QDialog):
+    def __init__(self):
+        super(Help_Window, self).__init__()
+        self.setWindowTitle("Help")
+        self.setWindowIcon(QIcon('hp_icon.png'))
+        self.view = QtWebEngineWidgets.QWebEngineView(self)
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(self.view)
         self.file = QtCore.QFile('README.md')
         if not self.file.open(QtCore.QIODevice.ReadOnly):
             QtGui.QMessageBox.information(None, 'info', self.file.errorString())
         self.stream = QtCore.QTextStream(self.file)
-        self.text_edit.setPlainText(self.stream.readAll())
-        self.text_edit.setFrameShape(QtWidgets.QFrame.WinPanel)
-        self.text_edit.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.text_edit.setLineWidth(1)
-        self.text_edit.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustIgnored)
-        self.text_edit.setReadOnly(True)
-        self.text_edit.setObjectName("plainTextEdit")
-        self.gridLayout.addWidget(self.text_edit, 0, 0, 1, 1)
-        QtCore.QMetaObject.connectSlotsByName(Help)
+        self.html = markdown.markdown(self.stream.readAll())
+
+        self.view.setHtml(self.html)
