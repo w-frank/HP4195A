@@ -23,7 +23,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # main window settings
         self.title = 'HP4195A'
-        self.window_icon = QIcon('hp_icon.png')
+        self.window_icon = QIcon('icon.png')
         self.width = 740
         self.height = 600
 
