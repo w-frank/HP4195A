@@ -1,11 +1,8 @@
 import csv
 import markdown
-
 import logging
 import logging.handlers
-
 import numpy as np
-
 from PyQt5 import QtWidgets, QtCore, QtGui, QtWebEngineWidgets
 from PyQt5.QtGui import QIcon
 from matplotlib.figure import Figure
@@ -17,16 +14,19 @@ class MainWindow(QtWidgets.QMainWindow):
     '''
     def __init__(self, command_queue, message_queue, data_queue, logging_queue):
         super(MainWindow, self).__init__()
+        # create data queues
         self.command_queue = command_queue
         self.message_queue = message_queue
         self.data_queue = data_queue
         self.logging_queue = logging_queue
 
+        # main window settings
         self.title = 'HP4195A'
         self.window_icon = QIcon('hp_icon.png')
         self.width = 740
         self.height = 600
 
+        # create logging queue and handler
         self.qh = logging.handlers.QueueHandler(self.logging_queue)
         self.root = logging.getLogger()
         self.root.setLevel(logging.DEBUG)
@@ -37,7 +37,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.initUI()
 
     def initUI(self):
-        #self.showMaximized()
         self.setWindowTitle(self.title)
         self.setFixedSize(self.width, self.height)
         self.setWindowIcon(self.window_icon)
@@ -312,7 +311,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 class PlotCanvas(FigureCanvas):
-
+    '''
+    This class is for the figure that displays the data, it reads data off the data queue and updates the graph depending on the settings.
+    '''
     def __init__(self,
                  parent=None,
                  data_queue=None,
@@ -358,15 +359,20 @@ class PlotCanvas(FigureCanvas):
         self.mag_ax.set_ylim(np.min(self.mag_data)-20,                                               np.max(self.mag_data)+20)
 
         if self.magnitude == True:
+            self.mag_ax.grid(color='0.9', linestyle='--', linewidth=1)
             self.mag_ax.semilogx(self.freq_data, self.mag_data, 'b')
 
         if self.phase == True:
+            self.phase_ax.grid(color='0.9', linestyle='--', linewidth=1)
             self.phase_ax.semilogx(self.freq_data, self.phase_data, 'r')
 
         self.fig.tight_layout()
         self.draw()
 
 class Help_Window(QtWidgets.QDialog):
+        '''
+        This class is for the help window that displays the readme file to the user, it reads the readme file and displays the information as html using the markdown syntax.
+        '''
     def __init__(self):
         super(Help_Window, self).__init__()
         self.setWindowTitle("Help")

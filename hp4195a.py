@@ -18,7 +18,6 @@ class hp4195a(multiprocessing.Process):
         self.data_queue = data_queue
         self.logging_queue = logger_queue
 
-
         self.mag_data = []
         self.phase_data = []
         self.freq_data = []
@@ -162,5 +161,5 @@ class hp4195a(multiprocessing.Process):
         if len(response) > 0:
             ret = response[0]
         else:
-             ret = 'Command Failed'
+             ret = 'Command failed'
         return ret
