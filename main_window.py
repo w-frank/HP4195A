@@ -8,6 +8,7 @@ from PyQt5.QtGui import QIcon
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
+
 class MainWindow(QtWidgets.QMainWindow):
     '''
     This class is for the main GUI window, it creates the graph, textboxes, buttons etc. and their events. It does not directly communicate with the hardware but instead puts messages in a command queue which are handled by another process.
@@ -370,9 +371,9 @@ class PlotCanvas(FigureCanvas):
         self.draw()
 
 class Help_Window(QtWidgets.QDialog):
-        '''
-        This class is for the help window that displays the readme file to the user, it reads the readme file and displays the information as html using the markdown syntax.
-        '''
+    '''
+    This class is for the help window that displays the readme file to the user, it reads the readme file and displays the information as html using the markdown syntax.
+    '''
     def __init__(self):
         super(Help_Window, self).__init__()
         self.setWindowTitle("Help")
