@@ -1,6 +1,6 @@
 # HP4195A Reader
 
-A basic program for connecting to and interfacing with a HP4195A Network/Spectrum Analyser to view and save the data.
+A Python program for connecting to and interfacing with a HP4195A Network/Spectrum Analyser to view and save the data.
 
 ## Requirements
 
