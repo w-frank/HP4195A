@@ -10,11 +10,11 @@ A Python program for connecting to and interfacing with a HP4195A Network/Spectr
 
 ### Software
 - Python 3.0 +
-- pyqt5
+- PyQt5 (+ PyQtWebEngine)
 - telnetlib
-- numpy
-- matplotlib
-- markdown
+- NumPy
+- Matplotlib
+- Markdown
 - cx_Freeze
 
 ### Supporting Documents
